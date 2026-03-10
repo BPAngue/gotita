@@ -9,7 +9,7 @@ const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #1a1a2e; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Nunito', sans-serif; }
-  .phone-wrap { width: 100%; max-width: 420px; height: 100vh; max-height: 900px; background: ${LAVENDER}; overflow: hidden; position: relative; display: flex; flex-direction: column; box-shadow: 0 0 60px rgba(124,58,237,0.4); }
+  .phone-wrap { width: 360px; height: 100%; background: ${LAVENDER}; overflow: hidden; position: relative; display: flex; flex-direction: column; flex: 1; }
   .screen { width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
   .screen::-webkit-scrollbar { width: 3px; }
   .screen::-webkit-scrollbar-thumb { background: ${LIGHT_PURPLE}; border-radius: 10px; }
@@ -1750,19 +1750,42 @@ export default function GoTitaApp() {
   return (
     <>
       <style>{styles}</style>
-      <div className="phone-wrap">
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
-          {renderScreen()}
-          <NotificationsPanel
-            open={notifOpen}
-            onClose={() => setNotifOpen(false)}
-            role={role}
-            notifications={notifications}
-            setNotifications={setNotifications}
-          />
-          <BurgerMenu open={menuOpen} onClose={() => setMenuOpen(false)} nav={nav} role={role} />
+      <div style={{ position: "relative" }}>
+        {/* Phone shell */}
+        <div style={{ width: 360, height: 800, borderRadius: 40, background: "#0d0d1a", boxShadow: "0 0 0 2px #2a2a4a, 0 0 60px rgba(124,58,237,0.4), 0 30px 80px rgba(0,0,0,0.6)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {/* Status bar */}
+          <div style={{ background: "#0d0d1a", padding: "10px 20px 6px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+            <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 11, fontWeight: 800 }}>9:41</span>
+            <div style={{ width: 80, height: 14, background: "#0d0d1a", borderRadius: 10, border: "1.5px solid #2a2a4a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 40, height: 6, background: "#1a1a2e", borderRadius: 4 }} />
+            </div>
+            <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+              <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><rect x="0" y="4" width="2" height="6" rx="1" fill="rgba(255,255,255,0.7)"/><rect x="3" y="2.5" width="2" height="7.5" rx="1" fill="rgba(255,255,255,0.7)"/><rect x="6" y="1" width="2" height="9" rx="1" fill="rgba(255,255,255,0.7)"/><rect x="9" y="0" width="2" height="10" rx="1" fill="rgba(255,255,255,0.7)"/></svg>
+              <svg width="14" height="10" viewBox="0 0 14 10" fill="rgba(255,255,255,0.7)"><path d="M7 1C4.5 1 2.3 2 0.8 3.6L2.2 5C3.4 3.8 5.1 3 7 3s3.6.8 4.8 2L13.2 3.6C11.7 2 9.5 1 7 1zM7 5c-1.4 0-2.6.5-3.5 1.4L4.9 7.8C5.5 7.3 6.2 7 7 7s1.5.3 2.1.8L10.5 6.4C9.6 5.5 8.4 5 7 5zM7 9l1.4 1.4L7 12l-1.4-1.6L7 9z"/></svg>
+              <div style={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <div style={{ width: 20, height: 10, border: "1.5px solid rgba(255,255,255,0.7)", borderRadius: 3, position: "relative", display: "flex", alignItems: "center", padding: "0 2px" }}>
+                  <div style={{ width: "75%", height: 6, background: "#22C55E", borderRadius: 1 }} />
+                  <div style={{ position: "absolute", right: -4, top: "50%", transform: "translateY(-50%)", width: 2, height: 5, background: "rgba(255,255,255,0.5)", borderRadius: 1 }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* App content */}
+          <div className="phone-wrap">
+            <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
+              {renderScreen()}
+              <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} role={role} notifications={notifications} setNotifications={setNotifications} />
+              <BurgerMenu open={menuOpen} onClose={() => setMenuOpen(false)} nav={nav} role={role} />
+            </div>
+            {showNav && <BottomNav active={screen} onNav={nav} role={role} />}
+          </div>
+
+          {/* Home indicator */}
+          <div style={{ background: "#0d0d1a", padding: "8px 0 10px", display: "flex", justifyContent: "center", flexShrink: 0 }}>
+            <div style={{ width: 100, height: 4, background: "rgba(255,255,255,0.3)", borderRadius: 2 }} />
+          </div>
         </div>
-        {showNav && <BottomNav active={screen} onNav={nav} role={role} />}
       </div>
     </>
   );
