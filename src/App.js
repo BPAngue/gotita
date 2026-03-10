@@ -20,9 +20,13 @@ const styles = `
   @keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.05); } }
   @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
   @keyframes confetti { 0% { transform:translateY(0) rotate(0); opacity:1; } 100% { transform:translateY(200px) rotate(720deg); opacity:0; } }
+  @keyframes slideDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes bellShake { 0%,100%{transform:rotate(0)} 15%{transform:rotate(14deg)} 30%{transform:rotate(-10deg)} 45%{transform:rotate(8deg)} 60%{transform:rotate(-5deg)} 75%{transform:rotate(3deg)} }
   .fade-in { animation: fadeIn 0.5s ease forwards; }
   .slide-up { animation: slideUp 0.4s ease forwards; }
+  .slide-down { animation: slideDown 0.35s ease forwards; }
   .pulse { animation: pulse 2s infinite; }
+  .bell-shake { animation: bellShake 0.6s ease; }
   .star-filled { color: #FBBF24; }
   .star-empty { color: #D1D5DB; }
 `;
@@ -542,6 +546,165 @@ const TitaSignupScreen = ({ nav }) => {
 };
 
 // ════════════════════════════════════════════════════════════════════════════
+// NOTIFICATIONS PANEL
+// ════════════════════════════════════════════════════════════════════════════
+const CUSTOMER_NOTIFS = [
+  { id: 1, type: "booking",  emoji: "✅", title: "Booking Confirmed!",          body: "Nena Dimagiba accepted your Manaratbat request for Oct 10 at 10:00 AM.",  time: "2 min ago",    unread: true  },
+  { id: 2, type: "order",    emoji: "🚶", title: "Tita is on her way!",         body: "Aling Sayo is heading to your location. ETA: ~15 minutes.",              time: "18 min ago",   unread: true  },
+  { id: 3, type: "promo",    emoji: "🎉", title: "Weekend Promo!",               body: "Get 20% off on Cleaning and Laundry services this Saturday and Sunday.", time: "1 hr ago",     unread: true  },
+  { id: 4, type: "payment",  emoji: "💳", title: "Payment Successful",           body: "PHP 542.00 was deducted from your wallet for your Manaratbat session.",  time: "2 hrs ago",    unread: false },
+  { id: 5, type: "review",   emoji: "⭐", title: "Rate Your Last Service",       body: "How was your experience with Alice Bungisngis? Tap to leave a review.",   time: "Yesterday",    unread: false },
+  { id: 6, type: "booking",  emoji: "📅", title: "Upcoming Booking Reminder",   body: "You have a Massage session with Alice B. tomorrow at 11:00 AM.",         time: "Yesterday",    unread: false },
+  { id: 7, type: "order",    emoji: "❌", title: "Booking Cancelled",            body: "Your Cleaning session on Sept 28 was cancelled. A refund is processing.",time: "2 days ago",   unread: false },
+  { id: 8, type: "system",   emoji: "🛡️", title: "Security Alert",              body: "Your account was accessed from a new device. Tap to review.",            time: "3 days ago",   unread: false },
+  { id: 9, type: "promo",    emoji: "💜", title: "New Titas Near You!",          body: "3 new Titas just joined in your area. Browse and find your match!",      time: "4 days ago",   unread: false },
+];
+
+const TITA_NOTIFS = [
+  { id: 1, type: "booking",  emoji: "🔔", title: "New Booking Request!",         body: "Maria Santos wants to hire you for Cooking on Oct 12 at 2:00 PM.",      time: "Just now",     unread: true  },
+  { id: 2, type: "booking",  emoji: "🔔", title: "New Booking Request!",         body: "Luz Reyes requested a Cleaning session for tomorrow at 9:00 AM.",       time: "5 min ago",    unread: true  },
+  { id: 3, type: "payment",  emoji: "💰", title: "Payment Received!",            body: "PHP 542.00 was added to your wallet from your Manaratbat session.",     time: "1 hr ago",     unread: true  },
+  { id: 4, type: "review",   emoji: "⭐", title: "New 5-Star Review!",           body: "K*** K**** gave you 5 stars: Niceeeee! I-hihire ko ulit si Nanay.",     time: "3 hrs ago",    unread: false },
+  { id: 5, type: "system",   emoji: "📊", title: "Weekly Earnings Summary",      body: "You earned PHP 3,640 this week — 12% more than last week. Great job!",  time: "Yesterday",    unread: false },
+  { id: 6, type: "booking",  emoji: "📅", title: "Reminder: Job Tomorrow",       body: "Don't forget your Laundry session with Ana Cruz at 8:00 AM tomorrow.",  time: "Yesterday",    unread: false },
+  { id: 7, type: "system",   emoji: "🏆", title: "Achievement Unlocked!",        body: "You completed 100+ jobs! You are now a GoTita Gold Tita.",              time: "2 days ago",   unread: false },
+  { id: 8, type: "review",   emoji: "💬", title: "Customer Left a Comment",      body: "A****** B****: Ang bait ni nanay grabe, highly recommended!",           time: "5 days ago",   unread: false },
+];
+
+const TYPE_COLORS = {
+  booking: { bg: "#EDE9FE", accent: PURPLE,    label: "Booking" },
+  payment: { bg: "#D1FAE5", accent: "#059669", label: "Payment" },
+  review:  { bg: "#FEF3C7", accent: "#D97706", label: "Review"  },
+  promo:   { bg: "#FCE7F3", accent: PINK,      label: "Promo"   },
+  order:   { bg: "#DBEAFE", accent: "#2563EB", label: "Order"   },
+  system:  { bg: "#F3F4F6", accent: "#6B7280", label: "System"  },
+};
+
+const NotificationsPanel = ({ open, onClose, role, notifications, setNotifications }) => {
+  const [filter, setFilter] = useState("all");
+  const unreadCount = notifications.filter(n => n.unread).length;
+
+  const filters = role === "tita"
+    ? ["all", "booking", "payment", "review", "system"]
+    : ["all", "booking", "order",   "payment", "promo" ];
+
+  const filtered = filter === "all" ? notifications : notifications.filter(n => n.type === filter);
+
+  const markRead    = (id) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+  const markAllRead = ()   => setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+  const dismiss     = (id) => setNotifications(prev => prev.filter(n => n.id !== id));
+
+  const accentGrad = role === "tita"
+    ? "linear-gradient(135deg, #1E1040, #2d1b69)"
+    : `linear-gradient(135deg, ${PURPLE}, #5B21B6)`;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 40, opacity: open ? 1 : 0, pointerEvents: open ? "all" : "none", transition: "opacity 0.3s" }} />
+
+      {/* Panel slides down from top */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, maxHeight: "88%", background: "white", borderRadius: "0 0 28px 28px", zIndex: 50, display: "flex", flexDirection: "column", boxShadow: "0 12px 48px rgba(0,0,0,0.25)", transform: open ? "translateY(0)" : "translateY(-105%)", transition: "transform 0.38s cubic-bezier(0.4,0,0.2,1)", overflow: "hidden" }}>
+
+        {/* ── Header ── */}
+        <div style={{ background: accentGrad, padding: "18px 20px 16px", flexShrink: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ position: "relative" }}>
+                <Icon name="bell" size={22} color="white" />
+                {unreadCount > 0 && (
+                  <div style={{ position: "absolute", top: -5, right: -5, background: PINK, borderRadius: "50%", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid transparent" }}>
+                    <span style={{ color: "white", fontSize: 9, fontWeight: 900 }}>{unreadCount}</span>
+                  </div>
+                )}
+              </div>
+              <h2 style={{ color: "white", fontSize: 20, fontWeight: 900 }}>Notifications</h2>
+              {unreadCount > 0 && (
+                <div style={{ background: PINK, borderRadius: 50, padding: "2px 10px" }}>
+                  <span style={{ color: "white", fontSize: 11, fontWeight: 800 }}>{unreadCount} new</span>
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {unreadCount > 0 && (
+                <button onClick={markAllRead} style={{ background: "rgba(255,255,255,0.18)", border: "none", borderRadius: 50, padding: "6px 12px", color: "white", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>
+                  Mark all read
+                </button>
+              )}
+              <button onClick={onClose} style={{ background: "rgba(255,255,255,0.18)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <Icon name="close" size={16} color="white" />
+              </button>
+            </div>
+          </div>
+
+          {/* Filter chips */}
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+            {filters.map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={{ background: filter === f ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.18)", border: "none", borderRadius: 50, padding: "6px 14px", color: filter === f ? PURPLE : "rgba(255,255,255,0.85)", fontSize: 11, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s", flexShrink: 0, textTransform: "capitalize" }}>
+                {f === "all" ? `All (${notifications.length})` : f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── List ── */}
+        <div style={{ flex: 1, overflowY: "auto", background: "#F9F7FF" }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: "60px 20px", textAlign: "center" }}>
+              <div style={{ fontSize: 52, marginBottom: 12 }}>🔕</div>
+              <p style={{ color: "#aaa", fontSize: 15, fontWeight: 700 }}>No notifications here</p>
+              <p style={{ color: "#ccc", fontSize: 12, marginTop: 4 }}>You are all caught up!</p>
+            </div>
+          ) : (
+            <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {filtered.map((n, i) => {
+                const tc = TYPE_COLORS[n.type] || TYPE_COLORS.system;
+                return (
+                  <div key={n.id} onClick={() => markRead(n.id)}
+                    style={{ background: n.unread ? "white" : "#FAFAFA", borderRadius: 18, padding: "14px 40px 12px 14px", display: "flex", gap: 12, alignItems: "flex-start", boxShadow: n.unread ? "0 3px 16px rgba(124,58,237,0.1)" : "0 1px 4px rgba(0,0,0,0.04)", border: n.unread ? `1.5px solid ${tc.accent}30` : "1.5px solid #f0eeff", cursor: "pointer", position: "relative", transition: "opacity 0.2s" }}>
+
+                    {/* Unread dot */}
+                    {n.unread && <div style={{ position: "absolute", top: 16, right: 38, width: 8, height: 8, borderRadius: "50%", background: tc.accent }} />}
+
+                    {/* Icon bubble */}
+                    <div style={{ width: 46, height: 46, borderRadius: 14, background: tc.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0, border: `1px solid ${tc.accent}20` }}>
+                      {n.emoji}
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                        <span style={{ color: tc.accent, fontSize: 10, fontWeight: 800, background: tc.bg, padding: "2px 8px", borderRadius: 50, border: `1px solid ${tc.accent}30` }}>{tc.label}</span>
+                        <span style={{ color: "#bbb", fontSize: 10, fontWeight: 600 }}>{n.time}</span>
+                      </div>
+                      <p style={{ color: n.unread ? "#1a1a2e" : "#555", fontSize: 13, fontWeight: n.unread ? 800 : 600, marginBottom: 3, lineHeight: 1.35 }}>{n.title}</p>
+                      <p style={{ color: "#888", fontSize: 12, lineHeight: 1.5 }}>{n.body}</p>
+                    </div>
+
+                    {/* Dismiss button */}
+                    <button onClick={e => { e.stopPropagation(); dismiss(n.id); }}
+                      style={{ position: "absolute", top: 10, right: 10, background: "#f0eeff", border: "none", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: 0.7 }}>
+                      <Icon name="close" size={11} color="#888" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{ padding: "12px 16px 16px", background: "white", borderTop: "1px solid #f0eeff", flexShrink: 0, textAlign: "center" }}>
+          <button onClick={() => { setNotifications([]); setFilter("all"); }}
+            style={{ background: "transparent", border: "none", color: "#ccc", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Clear all notifications
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
+
+// ════════════════════════════════════════════════════════════════════════════
 // BURGER MENU DRAWER
 // ════════════════════════════════════════════════════════════════════════════
 const BurgerMenu = ({ open, onClose, nav, role }) => {
@@ -653,7 +816,7 @@ const BurgerMenu = ({ open, onClose, nav, role }) => {
 // ════════════════════════════════════════════════════════════════════════════
 // CUSTOMER HOME DASHBOARD
 // ════════════════════════════════════════════════════════════════════════════
-const HomeScreen = ({ nav, onMenuOpen }) => {
+const HomeScreen = ({ nav, onMenuOpen, onBellOpen, unreadCount }) => {
   const [slide, setSlide] = useState(0);
   const banners = [
     { text: "Wala nang oras para magluto? Ipaluto na kay Tita 'yan!", emoji: "🍲", color: "#2d1b69" },
@@ -691,9 +854,9 @@ const HomeScreen = ({ nav, onMenuOpen }) => {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}>
+            <button onClick={onBellOpen} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}>
               <Icon name="bell" size={18} />
-              <div style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: PINK, border: "2px solid white" }} />
+              {unreadCount > 0 && <div style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: PINK, border: "2px solid white" }} />}
             </button>
             <button onClick={onMenuOpen} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <Icon name="menu" size={18} />
@@ -785,7 +948,7 @@ const HomeScreen = ({ nav, onMenuOpen }) => {
 // ════════════════════════════════════════════════════════════════════════════
 // TITA HOME DASHBOARD
 // ════════════════════════════════════════════════════════════════════════════
-const TitaHomeScreen = ({ nav, onMenuOpen }) => {
+const TitaHomeScreen = ({ nav, onMenuOpen, onBellOpen, unreadCount }) => {
   const [accepting, setAccepting] = useState(true);
   const bookings = [
     { name: "Maria Santos", service: "Cooking", time: "Today, 2:00 PM", status: "confirmed", emoji: "👩" },
@@ -812,9 +975,9 @@ const TitaHomeScreen = ({ nav, onMenuOpen }) => {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}>
+            <button onClick={onBellOpen} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}>
               <Icon name="bell" size={18} />
-              <div style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: PINK, border: "2px solid #1E1040" }} />
+              {unreadCount > 0 && <div style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: PINK, border: "2px solid #1E1040" }} />}
             </button>
             <button onClick={onMenuOpen} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <Icon name="menu" size={18} />
@@ -1541,29 +1704,36 @@ export default function GoTitaApp() {
   const [screen, setScreen] = useState("splash");
   const [role, setRole] = useState("customer"); // "customer" | "tita"
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [customerNotifs, setCustomerNotifs] = useState(CUSTOMER_NOTIFS);
+  const [titaNotifs, setTitaNotifs] = useState(TITA_NOTIFS);
+
+  const notifications    = role === "tita" ? titaNotifs    : customerNotifs;
+  const setNotifications = role === "tita" ? setTitaNotifs : setCustomerNotifs;
+  const unreadCount      = notifications.filter(n => n.unread).length;
 
   const nav = (s) => {
-    // Auto-set role based on destination
     if (s === "titahome") setRole("tita");
-    if (s === "home") setRole("customer");
-    // Signup completions
-    if (s === "signupTitaDone") { setRole("tita"); setScreen("titahome"); return; }
-    if (s === "signupCustomerDone") { setRole("customer"); setScreen("home"); return; }
+    if (s === "home")     setRole("customer");
+    if (s === "signupTitaDone")    { setRole("tita");     setScreen("titahome"); return; }
+    if (s === "signupCustomerDone"){ setRole("customer"); setScreen("home");     return; }
     setScreen(s);
     setMenuOpen(false);
+    setNotifOpen(false);
   };
 
   const showNav = NAV_SCREENS.includes(screen);
 
   const renderScreen = () => {
+    const bellProps = { onBellOpen: () => setNotifOpen(true), unreadCount };
     switch (screen) {
       case "splash":       return <SplashScreen nav={nav} />;
       case "login":        return <LoginScreen nav={nav} setRole={setRole} />;
       case "signup":       return <SignupScreen nav={nav} />;
       case "signupCustomer": return <CustomerSignupScreen nav={nav} />;
       case "signupTita":   return <TitaSignupScreen nav={nav} />;
-      case "home":         return <HomeScreen nav={nav} onMenuOpen={() => setMenuOpen(true)} />;
-      case "titahome":     return <TitaHomeScreen nav={nav} onMenuOpen={() => setMenuOpen(true)} />;
+      case "home":         return <HomeScreen nav={nav} onMenuOpen={() => setMenuOpen(true)} {...bellProps} />;
+      case "titahome":     return <TitaHomeScreen nav={nav} onMenuOpen={() => setMenuOpen(true)} {...bellProps} />;
       case "map":          return <MapScreen nav={nav} />;
       case "titaProfile":  return <TitaProfileScreen nav={nav} />;
       case "hiring":       return <HiringScreen nav={nav} />;
@@ -1573,7 +1743,7 @@ export default function GoTitaApp() {
       case "orders":       return <OrdersScreen nav={nav} />;
       case "account":      return <AccountScreen nav={nav} />;
       case "commission":   return <CommissionScreen nav={nav} />;
-      default:             return <HomeScreen nav={nav} onMenuOpen={() => setMenuOpen(true)} />;
+      default:             return <HomeScreen nav={nav} onMenuOpen={() => setMenuOpen(true)} {...bellProps} />;
     }
   };
 
@@ -1583,6 +1753,13 @@ export default function GoTitaApp() {
       <div className="phone-wrap">
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
           {renderScreen()}
+          <NotificationsPanel
+            open={notifOpen}
+            onClose={() => setNotifOpen(false)}
+            role={role}
+            notifications={notifications}
+            setNotifications={setNotifications}
+          />
           <BurgerMenu open={menuOpen} onClose={() => setMenuOpen(false)} nav={nav} role={role} />
         </div>
         {showNav && <BottomNav active={screen} onNav={nav} role={role} />}
