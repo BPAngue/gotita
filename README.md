@@ -1,3 +1,41 @@
+# Running the Project in VSCode
+
+Follow the steps below to run the application locally.
+
+## 1. Install Node.js
+
+Make sure **Node.js** is installed on your system.
+
+1. Go to https://nodejs.org/
+2. Download the **LTS version**
+3. Install it using the default settings
+
+To verify that Node.js and npm are installed correctly, open a terminal and run:
+
+```bash
+node -v
+npm -v
+```
+
+## 2. Start the Application
+
+1. Open the project folder in VSCode.
+2. Open the Terminal in VSCode (`Ctrl + ``).
+3. Run the following command:
+
+```bash
+npm start
+```
+
+## 3. Access the Application
+
+After the server starts, the application will automatically open in your browser.
+If it does not open automatically, go to:
+
+```bash
+http://localhost:3000
+```
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
